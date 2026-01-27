@@ -1,17 +1,21 @@
-import { defineConfig } from 'vite'
+/// <reference types="vitest" />
+import { defineConfig } from 'vitest/config' // <--- CHANGED THIS
 import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // 1. Force Vite to pre-bundle these dependencies
   optimizeDeps: {
-    include: ['@apollo/client', 'graphql'],
+    include: ['@mui/material', '@emotion/react', '@emotion/styled'],
   },
-  // 2. Allow mixed (CommonJS + ESM) modules to work together
   build: {
     commonjsOptions: {
       transformMixedEsModules: true,
     },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/setupTests.ts',
   },
 })
