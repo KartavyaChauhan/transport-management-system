@@ -1,15 +1,22 @@
-import { Button, Container, Typography } from "@mui/material";
+import React from 'react';
+import Layout from './components/Layout';
+import { Typography, Container, Paper } from '@mui/material';
 
 function App() {
   return (
-    <Container maxWidth="md" sx={{ textAlign: "center", mt: 5 }}>
-      <Typography variant="h3" component="h1" gutterBottom>
-        TMS Frontend is Live 🚀
-      </Typography>
-      <Button variant="contained" color="primary">
-        Test Material UI Button
-      </Button>
-    </Container>
+    // Wrap everything in our new Layout
+    <Layout>
+      <Container maxWidth="lg">
+        <Paper sx={{ p: 3, mt: 3 }}>
+           <Typography variant="h4" gutterBottom color="primary">
+             Welcome to the Transportation Management System
+           </Typography>
+           <Typography variant="body1">
+             This is the main content area where the shipment grid will appear soon.
+           </Typography>
+        </Paper>
+      </Container>
+    </Layout>
   );
 }
 
