@@ -18,13 +18,15 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Grid, // <--- Import the Modern Grid here
+  Grid, // Standard Grid import for MUI v6
 } from "@mui/material";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LocalShippingIcon from "@mui/icons-material/LocalShipping";
 import { GET_SHIPMENTS } from "../graphql/queries";
+// Ensure this file exists in the same folder: client/src/components/ShipmentDetails.tsx
+import ShipmentDetails from "./ShipmentDetails";
 
 interface Shipment {
   id: string;
@@ -48,16 +50,24 @@ const columns: GridColDef[] = [
 ];
 
 export default function ShipmentList() {
-  // 1. State for toggling views
   const [view, setView] = useState<"table" | "tile">("table");
+  // State for the Details Modal
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
 
-  // 2. Query Data
   const [result] = useQuery({ query: GET_SHIPMENTS });
   const { data, fetching, error } = result;
 
+  const handleOpenDetails = (shipment: Shipment) => {
+    setSelectedShipment(shipment);
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedShipment(null);
+  };
+
   const handleViewChange = (
     event: React.MouseEvent<HTMLElement>,
-    newView: "table" | "tile" | null,
+    newView: "table" | "tile" | null
   ) => {
     if (newView !== null) {
       setView(newView);
@@ -76,15 +86,8 @@ export default function ShipmentList() {
 
   return (
     <Box sx={{ width: "100%", p: 2 }}>
-      {/* HEADER: Title and Toggle Switch */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 3,
-        }}
-      >
+      {/* HEADER */}
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Typography variant="h5" component="div">
           Shipment Management
         </Typography>
@@ -95,10 +98,10 @@ export default function ShipmentList() {
           onChange={handleViewChange}
           aria-label="view mode"
         >
-          <ToggleButton value="table" aria-label="table view">
+          <ToggleButton value="table">
             <ViewListIcon />
           </ToggleButton>
-          <ToggleButton value="tile" aria-label="tile view">
+          <ToggleButton value="tile">
             <ViewModuleIcon />
           </ToggleButton>
         </ToggleButtonGroup>
@@ -111,6 +114,8 @@ export default function ShipmentList() {
             rows={data.getShipments}
             columns={columns}
             getRowId={(row) => row.id}
+            // 1. CLICK HANDLER: Open modal on row click
+            onRowClick={(params) => handleOpenDetails(params.row as Shipment)}
             initialState={{
               pagination: { paginationModel: { page: 0, pageSize: 5 } },
             }}
@@ -123,74 +128,62 @@ export default function ShipmentList() {
         /* VIEW 2: TILE / CARD GRID */
         <Grid container spacing={3}>
           {data.getShipments.map((row: Shipment) => (
-            // FIX: No 'item' prop. Use 'size' object for widths.
             <Grid size={{ xs: 12, sm: 6, md: 4 }} key={row.id}>
-              <ShipmentCard row={row} />
+              {/* 2. CLICK HANDLER: Pass open function to card */}
+              <ShipmentCard row={row} onViewDetails={() => handleOpenDetails(row)} />
             </Grid>
           ))}
         </Grid>
       )}
+
+      {/* 3. RENDER THE MODAL: This fixes the 'value never read' error */}
+      <ShipmentDetails
+        open={Boolean(selectedShipment)}
+        onClose={handleCloseDetails}
+        shipment={selectedShipment}
+      />
     </Box>
   );
 }
 
 // --- SUB-COMPONENT: Individual Tile/Card ---
-function ShipmentCard({ row }: { row: Shipment }) {
-  // Logic for the "Bun Button" (3 dots menu)
+// Updated to accept 'onViewDetails' prop
+function ShipmentCard({ row, onViewDetails }: { row: Shipment; onViewDetails: () => void }) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) =>
+  
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation(); 
     setAnchorEl(event.currentTarget);
-  const handleClose = () => setAnchorEl(null);
+  };
+  
+  const handleClose = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAnchorEl(null);
+  };
 
   return (
-    <Card
-      sx={{
-        height: "100%",
-        display: "flex",
-        flexDirection: "column",
-        position: "relative",
-      }}
-    >
+    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <CardContent>
-        {/* Card Header with Status and Menu */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-          }}
-        >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <Chip
             label={row.status}
             color={
-              row.status === "Delivered"
-                ? "success"
-                : row.status === "Pending"
-                  ? "warning"
-                  : "primary"
+              row.status === "Delivered" ? "success" : row.status === "Pending" ? "warning" : "primary"
             }
             size="small"
           />
           <IconButton onClick={handleClick} size="small">
             <MoreVertIcon />
           </IconButton>
-          {/* The Pop-up Menu */}
-          <Menu anchorEl={anchorEl} open={open} onClose={handleClose}>
+          <Menu anchorEl={anchorEl} open={open} onClose={() => setAnchorEl(null)}>
             <MenuItem onClick={handleClose}>Edit</MenuItem>
             <MenuItem onClick={handleClose}>Flag</MenuItem>
-            <MenuItem onClick={handleClose} sx={{ color: "error.main" }}>
-              Delete
-            </MenuItem>
+            <MenuItem onClick={handleClose} sx={{ color: "error.main" }}>Delete</MenuItem>
           </Menu>
         </Box>
 
-        {/* Card Data */}
-        <Typography
-          variant="h6"
-          component="div"
-          sx={{ mt: 1, display: "flex", alignItems: "center" }}
-        >
+        <Typography variant="h6" sx={{ mt: 1, display: "flex", alignItems: "center" }}>
           <LocalShippingIcon sx={{ mr: 1, color: "text.secondary" }} />
           {row.trackingId}
         </Typography>
@@ -208,7 +201,10 @@ function ShipmentCard({ row }: { row: Shipment }) {
       </CardContent>
 
       <CardActions sx={{ mt: "auto" }}>
-        <Button size="small">View Details</Button>
+        {/* 4. BUTTON CLICK: Triggers the modal */}
+        <Button size="small" onClick={onViewDetails}>
+          View Details
+        </Button>
       </CardActions>
     </Card>
   );
