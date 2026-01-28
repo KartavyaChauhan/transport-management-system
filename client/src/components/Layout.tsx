@@ -1,64 +1,80 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
-  Box,
-  CssBaseline,
+  Toolbar,
+  Typography,
   Drawer,
-  IconButton,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Toolbar,
-  Typography,
-  Button,
+  Box,
+  CssBaseline,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
+
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 const drawerWidth = 240;
 
 interface LayoutProps {
-  children: React.ReactNode; // This is where our main app content will sit
+  children: React.ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
-  // State to control if the sidebar is open or closed on mobile
+  const navigate = useNavigate();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
+    setMobileOpen((prev) => !prev);
   };
 
-  // The content of the sidebar menu
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('role');
+    window.location.href = '/login';
+  };
+
+  const menuItems = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+    { text: 'Shipments', icon: <LocalShippingIcon />, path: '/shipments' },
+  ];
+
   const drawerContent = (
-    <div>
-      <Toolbar sx={{ backgroundColor: 'primary.main', color: 'white' }}>
-        <Typography variant="h6" noWrap component="div">
+    <>
+      <Toolbar>
+        <Typography variant="h6" noWrap>
           TMS Logistics
         </Typography>
       </Toolbar>
       <List>
-        {['Dashboard', 'Shipments'].map((text, index) => (
-          <ListItem key={text} disablePadding>
-            <ListItemButton>
-              <ListItemIcon>
-                {index === 0 ? <DashboardIcon /> : <LocalShippingIcon />}
-              </ListItemIcon>
-              <ListItemText primary={text} />
+        {menuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton
+              selected={location.pathname === item.path}
+              onClick={() => navigate(item.path)}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.text} />
             </ListItemButton>
           </ListItem>
         ))}
       </List>
-    </div>
+    </>
   );
 
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
-      {/* 1. The Top Horizontal Menu (App Bar) */}
+
+      {/* App Bar */}
       <AppBar
         position="fixed"
         sx={{
@@ -69,26 +85,31 @@ export default function Layout({ children }: LayoutProps) {
         <Toolbar>
           <IconButton
             color="inherit"
-            aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
             sx={{ mr: 2, display: { sm: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-             Shipment Overview
+
+          <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
+            Shipment Overview
           </Typography>
-          <Button color="inherit">Login</Button>
+
+          <Tooltip title="Logout">
+            <IconButton color="inherit" onClick={handleLogout}>
+              <LogoutIcon />
+            </IconButton>
+          </Tooltip>
         </Toolbar>
       </AppBar>
 
-      {/* 2. The Side Menu (Drawer) - Handles both Mobile and Desktop widths */}
+      {/* Drawer */}
       <Box
         component="nav"
         sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
       >
-        {/* Mobile version (Temporary drawer) */}
+        {/* Mobile Drawer */}
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -96,17 +117,24 @@ export default function Layout({ children }: LayoutProps) {
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: drawerWidth,
+            },
           }}
         >
           {drawerContent}
         </Drawer>
-        {/* Desktop version (Permanent drawer) */}
+
+        {/* Desktop Drawer */}
         <Drawer
           variant="permanent"
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+            '& .MuiDrawer-paper': {
+              boxSizing: 'border-box',
+              width: drawerWidth,
+            },
           }}
           open
         >
@@ -114,12 +142,18 @@ export default function Layout({ children }: LayoutProps) {
         </Drawer>
       </Box>
 
-      {/* 3. The Main Content Area */}
+      {/* Main Content */}
       <Box
         component="main"
-        sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          bgcolor: '#f5f5f5',
+          minHeight: '100vh',
+        }}
       >
-        <Toolbar /> {/* This invisible toolbar pushes content down so it's not hidden behind the AppBar */}
+        <Toolbar />
         {children}
       </Box>
     </Box>
