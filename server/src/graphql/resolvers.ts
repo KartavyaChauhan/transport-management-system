@@ -5,16 +5,22 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 
-// Helper: Generate JWT Token
-const generateToken = (user: any) => {
+/* ------------------------------------------------------------------ */
+/* Utilities */
+/* ------------------------------------------------------------------ */
+
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined");
+}
+
+const generateToken = (user: any): string => {
   return jwt.sign(
     { id: user._id, role: user.role, email: user.email },
-    process.env.JWT_SECRET || "fallback_secret_do_not_use_in_prod", 
+    process.env.JWT_SECRET as string,
     { expiresIn: "1d" }
   );
 };
 
-// Helper: Check Authentication
 const requireAuth = (context: any) => {
   if (!context.user) {
     throw new GraphQLError("Authentication required", {
@@ -23,23 +29,28 @@ const requireAuth = (context: any) => {
   }
 };
 
-// Helper: Check Admin Role
 const requireAdmin = (context: any) => {
   requireAuth(context);
   if (context.user.role !== "ADMIN") {
-    throw new GraphQLError("Access denied. Admins only.", {
+    throw new GraphQLError("Admins only", {
       extensions: { code: "FORBIDDEN" },
     });
   }
 };
 
+/* ------------------------------------------------------------------ */
+/* Resolvers */
+/* ------------------------------------------------------------------ */
+
 export const resolvers = {
   Query: {
-    // PUBLIC
-    hello: () => "TMS API is running!",
+    health: () => "TMS GraphQL API running",
 
-    // PROTECTED: Get Shipments
-    shipments: async (_: any, { page, limit, status, sortBy, sortOrder }: any, context: any) => {
+    shipments: async (
+      _: any,
+      { page = 1, limit = 10, status, sortBy = "createdAt", sortOrder = -1 }: any,
+      context: any
+    ) => {
       requireAuth(context);
 
       const filter: any = {};
@@ -52,59 +63,39 @@ export const resolvers = {
           .sort({ [sortBy]: sortOrder })
           .skip(skip)
           .limit(limit)
-          .lean(), 
+          .lean(),
         Shipment.countDocuments(filter),
       ]);
 
-      // FIX: Map _id to id for each result
       const data = results.map((doc: any) => ({
         ...doc,
         id: doc._id.toString(),
-        // Ensure date fields are strings if your schema expects strings
-        createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : null,
-        updatedAt: doc.updatedAt ? new Date(doc.updatedAt).toISOString() : null,
+        createdAt: doc.createdAt?.toISOString(),
+        updatedAt: doc.updatedAt?.toISOString(),
       }));
 
       return { data, total, page, limit };
     },
 
-    // PROTECTED: Get Single Shipment
     shipment: async (_: any, { id }: { id: string }, context: any) => {
       requireAuth(context);
-      
+
       const doc: any = await Shipment.findById(id).lean();
-      if (!doc) throw new GraphQLError("Shipment not found");
-      
-      // FIX: Map _id to id
-      return { 
-        ...doc, 
+      if (!doc) {
+        throw new GraphQLError("Shipment not found");
+      }
+
+      return {
+        ...doc,
         id: doc._id.toString(),
-        createdAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : null
+        createdAt: doc.createdAt?.toISOString(),
+        updatedAt: doc.updatedAt?.toISOString(),
       };
     },
   },
 
   Mutation: {
-    // --- AUTH ---
-    register: async (_: any, { name, email, password, role }: any) => {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        throw new GraphQLError("User already exists with that email");
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const newUser = new User({
-        name,
-        email,
-        password: hashedPassword,
-        role: role || "EMPLOYEE",
-      });
-
-      const res = await newUser.save();
-      const token = generateToken(res);
-      
-      return { token, user: res };
-    },
+    /* -------------------- AUTH -------------------- */
 
     login: async (_: any, { email, password }: any) => {
       const user = await User.findOne({ email });
@@ -112,27 +103,45 @@ export const resolvers = {
         throw new GraphQLError("Invalid email or password");
       }
 
-      const match = await bcrypt.compare(password, user.password);
-      if (!match) {
+      const valid = await bcrypt.compare(password, user.password);
+      if (!valid) {
         throw new GraphQLError("Invalid email or password");
       }
 
       const token = generateToken(user);
-      return { token, user };
+
+      return {
+        token,
+        user: {
+          id: user._id.toString(),
+          email: user.email,
+          role: user.role,
+        },
+      };
     },
 
-    // --- SHIPMENTS (ADMIN ONLY) ---
+    /* -------------------- SHIPMENTS (ADMIN) -------------------- */
+
     createShipment: async (_: any, args: any, context: any) => {
       requireAdmin(context);
 
-      const trackingId = crypto.randomUUID();
-      const shipment = new Shipment({ ...args, trackingId });
-      
-      // .save() returns a Document, so 'id' virtual exists automatically
-      return await shipment.save(); 
+      if (!args.shipperName || !args.carrierName) {
+        throw new GraphQLError("Missing required shipment fields");
+      }
+
+      const shipment = new Shipment({
+        ...args,
+        trackingId: crypto.randomUUID(),
+      });
+
+      return await shipment.save();
     },
 
-    updateShipmentStatus: async (_: any, { id, status }: any, context: any) => {
+    updateShipmentStatus: async (
+      _: any,
+      { id, status }: { id: string; status: string },
+      context: any
+    ) => {
       requireAdmin(context);
 
       const shipment = await Shipment.findByIdAndUpdate(
@@ -141,15 +150,21 @@ export const resolvers = {
         { new: true }
       );
 
-      if (!shipment) throw new GraphQLError("Shipment not found");
+      if (!shipment) {
+        throw new GraphQLError("Shipment not found");
+      }
+
       return shipment;
     },
 
-    deleteShipment: async (_: any, { id }: any, context: any) => {
+    deleteShipment: async (_: any, { id }: { id: string }, context: any) => {
       requireAdmin(context);
 
-      const res = await Shipment.findByIdAndDelete(id);
-      if (!res) throw new GraphQLError("Shipment not found");
+      const deleted = await Shipment.findByIdAndDelete(id);
+      if (!deleted) {
+        throw new GraphQLError("Shipment not found");
+      }
+
       return true;
     },
   },

@@ -1,8 +1,17 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "urql";
 // --- FIX START ---
-import { DataGrid } from "@mui/x-data-grid"; // Import the Component
-import type { GridColDef } from "@mui/x-data-grid"; // Import the Type separately
+import { 
+  DataGrid, 
+  gridPageCountSelector, 
+  gridPageSelector, 
+  useGridApiContext, 
+  useGridSelector,
+  GridFooterContainer,
+  GridPagination
+} from "@mui/x-data-grid"; 
+import type { GridColDef } from "@mui/x-data-grid"; 
+import Pagination from "@mui/material/Pagination"; // Import standard Pagination (1, 2, 3)
 // --- FIX END ---
 import {
   Paper,
@@ -38,6 +47,32 @@ interface Shipment {
   deliveryLocation: string;
   status: string;
   rate: number;
+}
+
+// --- CUSTOM PAGINATION COMPONENT ---
+function CustomPagination() {
+  const apiRef = useGridApiContext();
+  const page = useGridSelector(apiRef, gridPageSelector);
+  const pageCount = useGridSelector(apiRef, gridPageCountSelector);
+
+  return (
+    <GridFooterContainer sx={{ justifyContent: "space-between", px: 2 }}>
+      {/* We keep the default rows-per-page selector by rendering GridPagination but hiding its arrows */}
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+         <GridPagination />
+      </Box>
+
+      {/* Render the numbered buttons (1, 2, 3...) */}
+      <Pagination
+        color="primary"
+        count={pageCount}
+        page={page + 1}
+        onChange={(event, value) => apiRef.current.setPage(value - 1)}
+        showFirstButton
+        showLastButton
+      />
+    </GridFooterContainer>
+  );
 }
 
 export default function ShipmentList() {
@@ -193,7 +228,13 @@ export default function ShipmentList() {
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
             pageSizeOptions={[5, 10]}
-            loading={fetching} // Shows spinner on grid when changing pages
+            loading={fetching} 
+            
+            // --- NEW: USE CUSTOM PAGINATION ---
+            slots={{
+              pagination: CustomPagination,
+            }}
+            // ----------------------------------
             
             disableRowSelectionOnClick
           />

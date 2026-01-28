@@ -8,7 +8,18 @@ import { resolvers } from "./graphql/resolvers";
 import { connectDB } from "./config/db";
 
 dotenv.config();
+
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined");
+}
+
 connectDB();
+
+interface JwtPayload {
+  id: string;
+  email: string;
+  role: "ADMIN" | "EMPLOYEE";
+}
 
 const server = new ApolloServer({
   typeDefs,
@@ -16,28 +27,34 @@ const server = new ApolloServer({
 });
 
 const startServer = async () => {
-  const { url } = await startStandaloneServer(server, {
-    listen: { port: 4000 },
-    // This context function runs for EVERY request
-    context: async ({ req }) => {
-      // 1. Get the token from the header
-      const token = req.headers.authorization?.replace("Bearer ", "") || "";
+  try {
+    const { url } = await startStandaloneServer(server, {
+      listen: { port: 4000 },
+      context: async ({ req }) => {
+        const authHeader = req.headers.authorization;
+        if (!authHeader) return {};
 
-      // 2. If no token, return empty context (Public user)
-      if (!token) return {};
+        const token = authHeader.replace("Bearer ", "");
 
-      // 3. Verify token and attach user to context
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || "fallback_secret_do_not_use_in_prod");
-        return { user: decoded };
-      } catch (err) {
-        // If token is invalid (expired/fake), return empty context
-        return {};
-      }
-    },
-  });
+        try {
+          const decoded = jwt.verify(
+            token,
+            process.env.JWT_SECRET as string
+          ) as JwtPayload;
 
-  console.log(`🚀 Server ready at ${url}`);
+          return { user: decoded };
+        } catch {
+          // Invalid or expired token
+          return {};
+        }
+      },
+    });
+
+    console.log(`🚀 Server ready at ${url}`);
+  } catch (error) {
+    console.error("❌ Failed to start server", error);
+    process.exit(1);
+  }
 };
 
 startServer();

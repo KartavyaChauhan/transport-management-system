@@ -1,41 +1,47 @@
 import { gql } from "graphql-tag";
 
 export const typeDefs = gql`
-  # 1. Define Role Enum
+  /* -------------------- ENUMS -------------------- */
+
   enum Role {
     ADMIN
     EMPLOYEE
   }
 
-  # 2. User Type (For returning user info)
+  enum ShipmentStatus {
+    Pending
+    InTransit
+    Delivered
+    Cancelled
+  }
+
+  /* -------------------- TYPES -------------------- */
+
   type User {
     id: ID!
-    name: String!
     email: String!
     role: Role!
   }
 
-  # 3. Auth Payload (The response after login)
   type AuthPayload {
     token: String!
     user: User!
   }
 
-  # 4. Shipment Type (Your upgraded version)
   type Shipment {
     id: ID!
     shipperName: String!
     carrierName: String!
     pickupLocation: String!
     deliveryLocation: String!
-    status: String!
+    status: ShipmentStatus!
     trackingId: String!
     rate: Float!
     estimatedDelivery: String
     createdAt: String!
+    updatedAt: String!
   }
 
-  # 5. Pagination Response
   type ShipmentPage {
     data: [Shipment!]!
     total: Int!
@@ -43,35 +49,32 @@ export const typeDefs = gql`
     limit: Int!
   }
 
-  type Query {
-    # Public: Check if server is running
-    hello: String
+  /* -------------------- QUERIES -------------------- */
 
-    # Protected: Get Shipments (Paginated & Filtered)
+  type Query {
+    # Health check
+    health: String!
+
+    # Protected: Paginated & Filtered Shipments
     shipments(
       page: Int = 1
       limit: Int = 10
-      status: String
+      status: ShipmentStatus
       sortBy: String = "createdAt"
       sortOrder: Int = -1
     ): ShipmentPage!
 
-    # Protected: Get Single Shipment
+    # Protected: Single Shipment
     shipment(id: ID!): Shipment
   }
 
-  type Mutation {
-    # --- AUTH MUTATIONS (New!) ---
-    register(
-      name: String!
-      email: String!
-      password: String!
-      role: Role # Optional, defaults to EMPLOYEE
-    ): AuthPayload!
+  /* -------------------- MUTATIONS -------------------- */
 
+  type Mutation {
+    # Auth
     login(email: String!, password: String!): AuthPayload!
 
-    # --- SHIPMENT MUTATIONS (Admin Only) ---
+    # Shipments (ADMIN only)
     createShipment(
       shipperName: String!
       carrierName: String!
@@ -79,10 +82,13 @@ export const typeDefs = gql`
       deliveryLocation: String!
       rate: Float!
       estimatedDelivery: String
-    ): Shipment
+    ): Shipment!
 
-    updateShipmentStatus(id: ID!, status: String!): Shipment
+    updateShipmentStatus(
+      id: ID!
+      status: ShipmentStatus!
+    ): Shipment!
 
-    deleteShipment(id: ID!): Boolean
+    deleteShipment(id: ID!): Boolean!
   }
 `;
