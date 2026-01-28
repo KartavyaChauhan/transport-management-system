@@ -42,3 +42,12 @@ export const DELETE_SHIPMENT = gql`
     deleteShipment(id: $id)
   }
 `;
+
+export const UPDATE_STATUS = gql`
+  mutation UpdateStatus($id: ID!, $status: String!) {
+    updateShipmentStatus(id: $id, status: $status) {
+      id
+      status
+    }
+  }
+`;

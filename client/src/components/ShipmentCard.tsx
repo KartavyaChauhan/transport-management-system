@@ -21,11 +21,12 @@ export interface Shipment {
 interface ShipmentCardProps {
   row: Shipment;
   onViewDetails: () => void;
-  // FIX 2: Ensure this prop exists so the parent can pass it down
-  onDelete?: () => void; 
+  onDelete?: () => void;
+  // FIX: Add onEdit here so TypeScript stops complaining
+  onEdit?: () => void;
 }
 
-export default function ShipmentCard({ row, onViewDetails, onDelete }: ShipmentCardProps) {
+export default function ShipmentCard({ row, onViewDetails, onDelete, onEdit }: ShipmentCardProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const userRole = localStorage.getItem('role');
@@ -40,9 +41,16 @@ export default function ShipmentCard({ row, onViewDetails, onDelete }: ShipmentC
     setAnchorEl(null);
   };
 
+  // Handle Delete Click
   const handleDeleteClick = (e: React.MouseEvent) => {
     handleClose(e);
     if (onDelete) onDelete();
+  };
+
+  // Handle Edit Click
+  const handleEditClick = (e: React.MouseEvent) => {
+    handleClose(e);
+    if (onEdit) onEdit();
   };
 
   return (
@@ -60,7 +68,8 @@ export default function ShipmentCard({ row, onViewDetails, onDelete }: ShipmentC
                 <MoreVertIcon />
               </IconButton>
               <Menu anchorEl={anchorEl} open={open} onClose={() => setAnchorEl(null)}>
-                <MenuItem onClick={handleClose}>Edit Status</MenuItem>
+                {/* FIX: Connect the Edit Handler */}
+                <MenuItem onClick={handleEditClick}>Edit Status</MenuItem>
                 <MenuItem onClick={handleDeleteClick} sx={{ color: "error.main" }}>Delete</MenuItem>
               </Menu>
             </>
