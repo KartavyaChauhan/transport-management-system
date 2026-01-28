@@ -10,25 +10,18 @@ import {
   Box,
   ToggleButton,
   ToggleButtonGroup,
-  Card,
-  CardContent,
-  CardActions,
-  Button,
-  Chip,
-  IconButton,
-  Menu,
-  MenuItem,
   Grid, // Standard Grid import for MUI v6
+  Button,
 } from "@mui/material";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import AddIcon from "@mui/icons-material/Add"; // Import Add Icon
 import { GET_SHIPMENTS } from "../graphql/queries";
-// Ensure this file exists in the same folder: client/src/components/ShipmentDetails.tsx
 import ShipmentDetails from "./ShipmentDetails";
-import ShipmentCard from './ShipmentCard';
+import ShipmentCard from "./ShipmentCard";
+import CreateShipmentModal from "./CreateShipmentModal"; // Import the Modal
 
+// Define the shape of the data
 interface Shipment {
   id: string;
   trackingId: string;
@@ -52,37 +45,40 @@ const columns: GridColDef[] = [
 
 export default function ShipmentList() {
   const [view, setView] = useState<"table" | "tile">("table");
-  // State for the Details Modal
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  
+  // NEW: State for Create Modal
+  const [isCreateOpen, setCreateOpen] = useState(false);
+  const userRole = localStorage.getItem("role"); // Check Admin Role
 
+  // Query the API
   const [result] = useQuery({ query: GET_SHIPMENTS });
   const { data, fetching, error } = result;
 
-  const handleOpenDetails = (shipment: Shipment) => {
-    setSelectedShipment(shipment);
-  };
-
-  const handleCloseDetails = () => {
-    setSelectedShipment(null);
-  };
+  // Handlers
+  const handleOpenDetails = (shipment: Shipment) => setSelectedShipment(shipment);
+  const handleCloseDetails = () => setSelectedShipment(null);
 
   const handleViewChange = (
     event: React.MouseEvent<HTMLElement>,
     newView: "table" | "tile" | null
   ) => {
-    if (newView !== null) {
-      setView(newView);
-    }
+    if (newView !== null) setView(newView);
   };
 
+  // 1. Loading State
   if (fetching)
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
       </Box>
     );
+
+  // 2. Error State
   if (error) return <Alert severity="error">Error: {error.message}</Alert>;
-  if (!data || !data.getShipments)
+
+  // 3. Empty State
+  if (!data || !data.shipments)
     return <Typography>No shipments found.</Typography>;
 
   return (
@@ -93,29 +89,42 @@ export default function ShipmentList() {
           Shipment Management
         </Typography>
 
-        <ToggleButtonGroup
-          value={view}
-          exclusive
-          onChange={handleViewChange}
-          aria-label="view mode"
-        >
-          <ToggleButton value="table">
-            <ViewListIcon />
-          </ToggleButton>
-          <ToggleButton value="tile">
-            <ViewModuleIcon />
-          </ToggleButton>
-        </ToggleButtonGroup>
+        <Box>
+          {/* NEW: Admin Only Add Button */}
+          {userRole === 'ADMIN' && (
+             <Button 
+               variant="contained" 
+               startIcon={<AddIcon />} 
+               onClick={() => setCreateOpen(true)}
+               sx={{ mr: 2 }}
+             >
+               Add Shipment
+             </Button>
+          )}
+
+          <ToggleButtonGroup
+            value={view}
+            exclusive
+            onChange={handleViewChange}
+            aria-label="view mode"
+          >
+            <ToggleButton value="table">
+              <ViewListIcon />
+            </ToggleButton>
+            <ToggleButton value="tile">
+              <ViewModuleIcon />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
       </Box>
 
       {/* VIEW 1: DATA GRID TABLE */}
       {view === "table" ? (
         <Paper sx={{ height: 500, width: "100%" }}>
           <DataGrid
-            rows={data.getShipments}
+            rows={data.shipments.data}
             columns={columns}
             getRowId={(row) => row.id}
-            // 1. CLICK HANDLER: Open modal on row click
             onRowClick={(params) => handleOpenDetails(params.row as Shipment)}
             initialState={{
               pagination: { paginationModel: { page: 0, pageSize: 5 } },
@@ -128,24 +137,30 @@ export default function ShipmentList() {
       ) : (
         /* VIEW 2: TILE / CARD GRID */
         <Grid container spacing={3}>
-          {data.getShipments.map((row: Shipment) => (
+          {data.shipments.data.map((row: Shipment) => (
+            // FIX: Use 'size' for MUI v6
             <Grid size={{ xs: 12, sm: 6, md: 4 }} key={row.id}>
-              {/* 2. CLICK HANDLER: Pass open function to card */}
               <ShipmentCard row={row} onViewDetails={() => handleOpenDetails(row)} />
             </Grid>
           ))}
         </Grid>
       )}
 
-      {/* 3. RENDER THE MODAL: This fixes the 'value never read' error */}
+      {/* DETAILS MODAL */}
       <ShipmentDetails
         open={Boolean(selectedShipment)}
         onClose={handleCloseDetails}
         shipment={selectedShipment}
       />
+
+      {/* NEW: CREATE MODAL */}
+      <CreateShipmentModal 
+        open={isCreateOpen} 
+        onClose={() => setCreateOpen(false)} 
+        onSuccess={() => {
+           window.location.reload(); // Refresh to show new data
+        }} 
+      />
     </Box>
   );
 }
-
-// --- SUB-COMPONENT: Individual Tile/Card ---
-// Updated to accept 'onViewDetails' prop

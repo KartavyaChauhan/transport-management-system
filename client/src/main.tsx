@@ -11,10 +11,13 @@ const client = new Client({
   exchanges: [cacheExchange, fetchExchange],
   // This is the specific fix for the CSRF error:
   fetchOptions: () => {
+    // 1. Get token from storage
+    const token = localStorage.getItem('token');
     return {
       headers: {
-        // The "Secret Handshake" that tells Apollo Server we are legit
         'Apollo-Require-Preflight': 'true',
+        // 2. Attach token if it exists
+        authorization: token ? `Bearer ${token}` : '',
       },
     };
   },

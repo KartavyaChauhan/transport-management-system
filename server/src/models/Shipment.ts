@@ -1,8 +1,19 @@
-import mongoose from "mongoose";
+import mongoose, { Document } from "mongoose";
 
-const ShipmentSchema = new mongoose.Schema(
+export interface IShipment extends Document {
+  shipperName: string;
+  carrierName: string;
+  pickupLocation: string;
+  deliveryLocation: string;
+  status: "Pending" | "In Transit" | "Delivered" | "Cancelled";
+  trackingId: string;
+  rate: number;
+  estimatedDelivery?: Date;
+}
+
+const ShipmentSchema = new mongoose.Schema<IShipment>(
   {
-    shipperName: { type: String, required: true },
+    shipperName: { type: String, required: true, index: true },
     carrierName: { type: String, required: true },
     pickupLocation: { type: String, required: true },
     deliveryLocation: { type: String, required: true },
@@ -10,14 +21,13 @@ const ShipmentSchema = new mongoose.Schema(
       type: String,
       enum: ["Pending", "In Transit", "Delivered", "Cancelled"],
       default: "Pending",
+      index: true,
     },
-    trackingId: { type: String, unique: true },
+    trackingId: { type: String, required: true, unique: true },
     rate: { type: Number, required: true },
     estimatedDelivery: { type: Date },
   },
-  {
-    timestamps: true, // Automatically adds createdAt and updatedAt
-  }
+  { timestamps: true }
 );
 
-export const Shipment = mongoose.model("Shipment", ShipmentSchema);
+export const Shipment = mongoose.model<IShipment>("Shipment", ShipmentSchema);
