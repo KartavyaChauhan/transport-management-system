@@ -36,3 +36,9 @@ export const CREATE_SHIPMENT = gql`
     }
   }
 `;
+
+export const DELETE_SHIPMENT = gql`
+  mutation DeleteShipment($id: ID!) {
+    deleteShipment(id: $id)
+  }
+`;
