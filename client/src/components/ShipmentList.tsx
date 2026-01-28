@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "urql";
-import { DataGrid } from "@mui/x-data-grid";
-import type { GridColDef } from "@mui/x-data-grid";
+// --- FIX START ---
+import { DataGrid } from "@mui/x-data-grid"; // Import the Component
+import type { GridColDef } from "@mui/x-data-grid"; // Import the Type separately
+// --- FIX END ---
 import {
   Paper,
   Typography,
@@ -42,16 +44,27 @@ export default function ShipmentList() {
   const [view, setView] = useState<"table" | "tile">("table");
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   
-  // Create State
+  // Create & Edit State
   const [isCreateOpen, setCreateOpen] = useState(false);
-  
-  // Edit State
   const [shipmentToEdit, setShipmentToEdit] = useState<Shipment | null>(null);
 
   const userRole = localStorage.getItem("role");
 
-  // API Hooks
-  const [result] = useQuery({ query: GET_SHIPMENTS });
+  // --- PAGINATION STATE ---
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0, // 0-based index for DataGrid
+    pageSize: 5,
+  });
+
+  // --- API Hooks ---
+  const [result] = useQuery({ 
+    query: GET_SHIPMENTS,
+    variables: {
+      page: paginationModel.page + 1, // Convert to 1-based for Backend
+      limit: paginationModel.pageSize
+    } 
+  });
+  
   const [deleteResult, deleteShipment] = useMutation(DELETE_SHIPMENT);
 
   const { data, fetching, error } = result;
@@ -64,7 +77,7 @@ export default function ShipmentList() {
     if (e) e.stopPropagation();
     if (window.confirm("Are you sure you want to delete this shipment?")) {
       await deleteShipment({ id });
-      window.location.reload();
+      window.location.reload(); 
     }
   };
 
@@ -90,7 +103,6 @@ export default function ShipmentList() {
     { field: "rate", headerName: "Rate ($)", width: 100, type: "number" },
   ];
 
-  // Admin Actions Column
   if (userRole === "ADMIN") {
     columns.push({
       field: "actions",
@@ -122,9 +134,13 @@ export default function ShipmentList() {
     });
   }
 
-  if (fetching) return <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}><CircularProgress /></Box>;
+  // NOTE: We do NOT block rendering on fetching anymore if we want the 
+  // DataGrid to show its own loading skeleton.
   if (error) return <Alert severity="error">Error: {error.message}</Alert>;
-  if (!data || !data.shipments) return <Typography>No shipments found.</Typography>;
+
+  // Ensure data exists before mapping (fallback to empty array)
+  const rows = data?.shipments?.data || [];
+  const totalRows = data?.shipments?.total || 0;
 
   return (
     <Box sx={{ width: "100%", p: 2 }}>
@@ -166,50 +182,57 @@ export default function ShipmentList() {
       {view === "table" ? (
         <Paper sx={{ height: 500, width: "100%" }}>
           <DataGrid
-            rows={data.shipments.data}
+            rows={rows}
             columns={columns}
             getRowId={(row) => row.id}
             onRowClick={(params) => handleOpenDetails(params.row as Shipment)}
-            initialState={{
-              pagination: { paginationModel: { page: 0, pageSize: 5 } },
-            }}
+            
+            // Server-side Pagination Props
+            rowCount={totalRows}
+            paginationMode="server"
+            paginationModel={paginationModel}
+            onPaginationModelChange={setPaginationModel}
             pageSizeOptions={[5, 10]}
+            loading={fetching} // Shows spinner on grid when changing pages
+            
             disableRowSelectionOnClick
           />
         </Paper>
       ) : (
         /* VIEW 2: TILES */
         <Grid container spacing={3}>
-          {data.shipments.data.map((row: Shipment) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={row.id}>
-              <ShipmentCard
-                row={row}
-                onViewDetails={() => handleOpenDetails(row)}
-                onDelete={() => handleDelete(row.id)}
-                onEdit={() => handleEdit(row)}
-              />
-            </Grid>
-          ))}
+          {fetching ? (
+             <Box sx={{ p: 4, width: '100%', display: 'flex', justifyContent: 'center' }}>
+               <CircularProgress />
+             </Box>
+          ) : (
+             rows.map((row: Shipment) => (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={row.id}>
+                <ShipmentCard
+                  row={row}
+                  onViewDetails={() => handleOpenDetails(row)}
+                  onDelete={() => handleDelete(row.id)}
+                  onEdit={() => handleEdit(row)}
+                />
+              </Grid>
+            ))
+          )}
         </Grid>
       )}
 
-      {/* DETAILS MODAL */}
+      {/* MODALS */}
       <ShipmentDetails
         open={Boolean(selectedShipment)}
         onClose={handleCloseDetails}
         shipment={selectedShipment}
       />
 
-      {/* CREATE MODAL */}
       <CreateShipmentModal
         open={isCreateOpen}
         onClose={() => setCreateOpen(false)}
-        onSuccess={() => {
-          window.location.reload();
-        }}
+        onSuccess={() => window.location.reload()}
       />
 
-      {/* EDIT STATUS MODAL */}
       {shipmentToEdit && (
         <UpdateStatusModal
           open={Boolean(shipmentToEdit)}
