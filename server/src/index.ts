@@ -1,16 +1,18 @@
+import dotenv from "dotenv";
+// 1. Load env vars BEFORE importing anything else
+dotenv.config(); 
+
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
-import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
-
 import { typeDefs } from "./graphql/typeDefs";
 import { resolvers } from "./graphql/resolvers";
 import { connectDB } from "./config/db";
 
-dotenv.config();
-
+// Double check strictly here too
 if (!process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET is not defined");
+  console.error("❌ FATAL: JWT_SECRET is not defined in .env");
+  process.exit(1);
 }
 
 connectDB();
@@ -44,7 +46,6 @@ const startServer = async () => {
 
           return { user: decoded };
         } catch {
-          // Invalid or expired token
           return {};
         }
       },

@@ -1,13 +1,7 @@
 import { gql } from "graphql-tag";
 
 export const typeDefs = gql`
-  /* -------------------- ENUMS -------------------- */
-
-  enum Role {
-    ADMIN
-    EMPLOYEE
-  }
-
+  # -------------------- ENUMS --------------------
   enum ShipmentStatus {
     Pending
     InTransit
@@ -15,27 +9,34 @@ export const typeDefs = gql`
     Cancelled
   }
 
-  /* -------------------- TYPES -------------------- */
-
-  type User {
-    id: ID!
-    email: String!
-    role: Role!
+  enum VehicleStatus {
+    Active
+    Idle
+    Maintenance
   }
 
-  type AuthPayload {
-    token: String!
-    user: User!
+  # -------------------- DASHBOARD TYPES --------------------
+  type StatSummary {
+    count: Int!
+    totalValue: Float!
   }
 
+  type DashboardStats {
+    total: StatSummary!
+    pending: StatSummary!
+    transit: StatSummary!
+    delivered: StatSummary!
+  }
+
+  # -------------------- ENTITY TYPES --------------------
   type Shipment {
     id: ID!
+    trackingId: String!
     shipperName: String!
     carrierName: String!
     pickupLocation: String!
     deliveryLocation: String!
     status: ShipmentStatus!
-    trackingId: String!
     rate: Float!
     estimatedDelivery: String
     createdAt: String!
@@ -49,32 +50,37 @@ export const typeDefs = gql`
     limit: Int!
   }
 
-  /* -------------------- QUERIES -------------------- */
+  type Vehicle {
+    id: ID!
+    plateNumber: String!
+    vehicleModel: String!
+    type: String!
+    driverName: String!
+    status: VehicleStatus!
+    currentLocation: String!
+  }
 
+  # -------------------- QUERIES --------------------
   type Query {
-    # Health check
     health: String!
 
-    # Protected: Paginated & Filtered Shipments
+    dashboardStats: DashboardStats!
+
     shipments(
       page: Int = 1
       limit: Int = 10
       status: ShipmentStatus
       sortBy: String = "createdAt"
-      sortOrder: Int = -1
+      sortOrder: String = "desc"
     ): ShipmentPage!
 
-    # Protected: Single Shipment
     shipment(id: ID!): Shipment
+
+    vehicles: [Vehicle!]!
   }
 
-  /* -------------------- MUTATIONS -------------------- */
-
+  # -------------------- MUTATIONS --------------------
   type Mutation {
-    # Auth
-    login(email: String!, password: String!): AuthPayload!
-
-    # Shipments (ADMIN only)
     createShipment(
       shipperName: String!
       carrierName: String!
@@ -84,11 +90,17 @@ export const typeDefs = gql`
       estimatedDelivery: String
     ): Shipment!
 
-    updateShipmentStatus(
-      id: ID!
-      status: ShipmentStatus!
-    ): Shipment!
-
+    updateShipmentStatus(id: ID!, status: ShipmentStatus!): Shipment!
     deleteShipment(id: ID!): Boolean!
+
+    addVehicle(
+      plateNumber: String!
+      vehicleModel: String!
+      type: String!
+      driverName: String!
+    ): Vehicle!
+
+    deleteVehicle(id: ID!): Boolean!
+    assignVehicleToShipment(vehicleId: ID!, shipmentId: ID!): Shipment!
   }
 `;

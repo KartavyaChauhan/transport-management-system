@@ -1,33 +1,47 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
+import { Routes, Route } from 'react-router-dom';
+import Dashboard from './pages/Dashboard';
+import Shipments from './pages/Shipments';
+import Vehicles from './pages/Vehicles'; 
 import Layout from './components/Layout';
-import ShipmentList from './components/ShipmentList';
-import { Container } from '@mui/material';
-
-// FIX: Use React.ReactElement to avoid "JSX namespace" errors
-const PrivateRoute = ({ children }: { children: React.ReactElement }) => {
-  const token = localStorage.getItem('token');
-  // If no token, force redirect to /login
-  return token ? children : <Navigate to="/login" replace />;
-};
 
 function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      {/* ✅ OPEN ACCESS ROUTES 
+         No <PrivateRoute> wrapper needed anymore.
+         Everyone gets access immediately.
+      */}
+      
       <Route
         path="/"
         element={
-          <PrivateRoute>
-            <Layout>
-              <Container maxWidth="xl">
-                <ShipmentList />
-              </Container>
-            </Layout>
-          </PrivateRoute>
+          <Layout>
+            <Dashboard />
+          </Layout>
         }
       />
+      
+      <Route
+        path="/shipments"
+        element={
+          <Layout>
+            <Shipments />
+          </Layout>
+        }
+      />
+      
+      <Route
+        path="/vehicles"
+        element={
+          <Layout>
+            <Vehicles />
+          </Layout>
+        }
+      />
+
+      {/* Redirect unknown routes to Dashboard */}
+      <Route path="*" element={<Layout><Dashboard /></Layout>} />
     </Routes>
   );
 }

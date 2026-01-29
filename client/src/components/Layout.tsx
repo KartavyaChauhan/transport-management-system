@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
@@ -13,147 +13,150 @@ import {
   Box,
   CssBaseline,
   IconButton,
-  Tooltip,
+  useTheme,
+  useMediaQuery,
+  alpha
 } from '@mui/material';
 
 import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import LogoutIcon from '@mui/icons-material/Logout';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 
 const drawerWidth = 240;
 
-interface LayoutProps {
-  children: React.ReactNode;
-}
-
-export default function Layout({ children }: LayoutProps) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const handleDrawerToggle = () => {
-    setMobileOpen((prev) => !prev);
-  };
+  const [open, setOpen] = useState(!isMobile);
 
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    window.location.href = '/login';
-  };
+  useEffect(() => {
+    if (isMobile) setOpen(false);
+  }, [isMobile]);
+
+  // ❌ REMOVED: Logout Logic
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Shipments', icon: <LocalShippingIcon />, path: '/shipments' },
+    { text: 'Vehicles', icon: <DirectionsCarIcon />, path: '/vehicles' },
   ];
 
-  const drawerContent = (
-    <>
-      <Toolbar>
-        <Typography variant="h6" noWrap>
-          TMS Logistics
-        </Typography>
-      </Toolbar>
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => navigate(item.path)}
-            >
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-      </List>
-    </>
-  );
-
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box
+      sx={{
+        width: '100vw',
+        minHeight: '100vh',
+        bgcolor: '#0f172a', 
+        overflowX: 'hidden',
+      }}
+    >
       <CssBaseline />
 
-      {/* App Bar */}
+      {/* APP BAR */}
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
+          zIndex: theme.zIndex.drawer + 1,
+          bgcolor: '#1a2035',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.leavingScreen,
+          }),
+          ...(open && !isMobile && {
+            marginLeft: drawerWidth,
+            width: `calc(100vw - ${drawerWidth}px)`, 
+          }),
         }}
       >
         <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
+          <IconButton color="inherit" onClick={() => setOpen(!open)}>
             <MenuIcon />
           </IconButton>
 
-          <Typography variant="h6" noWrap sx={{ flexGrow: 1 }}>
-            Shipment Overview
+          <Typography sx={{ flexGrow: 1, ml: 2, fontFamily: 'Oswald', letterSpacing: 1 }} fontWeight={600}>
+            Control Center
           </Typography>
 
-          <Tooltip title="Logout">
-            <IconButton color="inherit" onClick={handleLogout}>
-              <LogoutIcon />
-            </IconButton>
-          </Tooltip>
+          {/* ❌ REMOVED: Logout Button */}
         </Toolbar>
       </AppBar>
 
-      {/* Drawer */}
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+      {/* DRAWER */}
+      <Drawer
+        variant={isMobile ? 'temporary' : 'persistent'}
+        open={open}
+        onClose={() => setOpen(false)}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: drawerWidth,
+            boxSizing: 'border-box',
+            bgcolor: '#111827',
+            color: 'white',
+            borderRight: '1px solid rgba(255,255,255,0.05)',
+          },
+        }}
       >
-        {/* Mobile Drawer */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-            },
-          }}
-        >
-          {drawerContent}
-        </Drawer>
+        <Toolbar sx={{ justifyContent: 'center' }}>
+          <Typography fontWeight={800} sx={{ letterSpacing: 1, fontFamily: 'Oswald', color: '#60a5fa' }}>
+            TMS LOGISTICS
+          </Typography>
+        </Toolbar>
 
-        {/* Desktop Drawer */}
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-            },
-          }}
-          open
-        >
-          {drawerContent}
-        </Drawer>
-      </Box>
+        <List sx={{ px: 2 }}>
+          {menuItems.map((item) => (
+            <ListItem key={item.text} disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                selected={location.pathname === item.path}
+                onClick={() => navigate(item.path)}
+                sx={{
+                  borderRadius: 2,
+                  color: '#94a3b8',
+                  '&.Mui-selected': {
+                    bgcolor: 'rgba(59, 130, 246, 0.2)', // Classy blue tint
+                    color: '#60a5fa',
+                    '&:hover': { bgcolor: 'rgba(59, 130, 246, 0.3)' },
+                    '& .MuiListItemIcon-root': { color: '#60a5fa' },
+                  },
+                  '&:hover': {
+                    bgcolor: alpha('#fff', 0.05),
+                    color: 'white',
+                    '& .MuiListItemIcon-root': { color: 'white' }
+                  }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, color: '#94a3b8' }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.text} 
+                  primaryTypographyProps={{ fontFamily: 'Inter', fontWeight: 500 }} 
+                />
+              </ListItemButton>
+            </ListItem>
+          ))}
+        </List>
+      </Drawer>
 
-      {/* Main Content */}
+      {/* MAIN CONTENT */}
       <Box
         component="main"
         sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          bgcolor: '#f5f5f5',
+          width: !isMobile && open ? `calc(100vw - ${drawerWidth}px)` : '100vw',
           minHeight: '100vh',
+          transition: theme.transitions.create(['margin', 'width'], {
+            easing: theme.transitions.easing.easeOut,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+          marginLeft: !isMobile && open ? `${drawerWidth}px` : 0,
         }}
       >
-        <Toolbar />
+        <Toolbar /> 
         {children}
       </Box>
     </Box>
