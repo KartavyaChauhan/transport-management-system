@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
-// 1. Load env vars BEFORE importing anything else
-dotenv.config(); 
+// Load env vars first
+dotenv.config();
 
 import { ApolloServer } from "@apollo/server";
 import { startStandaloneServer } from "@apollo/server/standalone";
@@ -9,7 +9,7 @@ import { typeDefs } from "./graphql/typeDefs";
 import { resolvers } from "./graphql/resolvers";
 import { connectDB } from "./config/db";
 
-// Double check strictly here too
+// Safety check
 if (!process.env.JWT_SECRET) {
   console.error("❌ FATAL: JWT_SECRET is not defined in .env");
   process.exit(1);
@@ -26,12 +26,16 @@ interface JwtPayload {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+
+  // ✅ REQUIRED FOR POC / LOCAL DEV
+  csrfPrevention: false,
 });
 
-const startServer = async () => {
+async function startServer() {
   try {
     const { url } = await startStandaloneServer(server, {
       listen: { port: 4000 },
+
       context: async ({ req }) => {
         const authHeader = req.headers.authorization;
         if (!authHeader) return {};
@@ -52,10 +56,10 @@ const startServer = async () => {
     });
 
     console.log(`🚀 Server ready at ${url}`);
-  } catch (error) {
-    console.error("❌ Failed to start server", error);
+  } catch (err) {
+    console.error("❌ Failed to start server", err);
     process.exit(1);
   }
-};
+}
 
 startServer();
